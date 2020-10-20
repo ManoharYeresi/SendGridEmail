@@ -1,0 +1,60 @@
+ public HttpResponseMessage Getpartsprice(string CUSTOMER_ACCOUNT, string PART_NUMBERS, DateTime? EFFECTIVE_FROM_DATE, bool bulkLoad, string fileFormat, int CurrentPage, int PageSize)
+        {
+            try
+            {
+                HttpResponseMessage message = null;
+                ResultModel<PartsPrice> parts = new ResultModel<PartsPrice>();
+                ResultModel<PriceList> lstparts = new ResultModel<PriceList>();
+                if (string.IsNullOrEmpty(CUSTOMER_ACCOUNT))
+                {
+                    lstparts.Error = "54301";
+                    lstparts.Messege = "Please enter valid customer account";
+                    message = Request.CreateResponse(lstparts);
+                    return message;
+                }
+                DateTime date = (DateTime)EFFECTIVE_FROM_DATE;
+                string newdate = date.ToString("yyyy/MM/dd");
+                bool isfileformat = false;
+
+                //if (fileFormat != null)
+                if (bulkLoad==true&&string.IsNullOrEmpty(fileFormat))
+                {
+                    isfileformat = true;
+                }
+                if (isfileformat == false && bulkLoad ==true && fileFormat.ToUpper() != "csv".ToUpper())
+                {
+                    lstparts.Error = "54304";
+                    lstparts.Messege = "Please enter valid file format";
+                    message = Request.CreateResponse(lstparts);
+                    return message;
+
+                }
+                var iscustomerNumberExists = new PriceRepository().GetCustomerNumberExist(CUSTOMER_ACCOUNT);
+                if (!iscustomerNumberExists)
+                {
+                    lstparts.Error = "54301";
+                    lstparts.Messege = "Please enter valid customer account Number";
+                    message = Request.CreateResponse(lstparts);
+                    return message;
+                }
+                if (bulkLoad)
+                {
+                    lstparts.result = new PriceRepository().GetBlobParts(CUSTOMER_ACCOUNT, PART_NUMBERS, EFFECTIVE_FROM_DATE, fileFormat);
+                    return Request.CreateResponse(lstparts);
+
+                }
+                else
+                {
+                    parts.result = new PriceRepository().GetParts(CUSTOMER_ACCOUNT, PART_NUMBERS, EFFECTIVE_FROM_DATE);
+                    //pagenation Logic
+                    var items = parts.result.Parts.Skip((CurrentPage - 1) * PageSize).Take(PageSize).ToList();
+                    parts.result.Parts = items;
+                    return Request.CreateResponse(parts);
+                }
+            }
+            catch (Exception ex)
+            {
+                return Request.CreateResponse(HttpStatusCode.InternalServerError);
+            }
+
+        }
